@@ -306,11 +306,17 @@ searchInput.addEventListener("input", () => {
     ? allProducts.filter(
         (p) =>
           (p.name || "").toLowerCase().includes(term) ||
-          (p.category || "").toLowerCase().includes(term)
+          serviceTypeLabel(p.service_type).toLowerCase().includes(term)
       )
     : allProducts;
   renderGrid(filtered);
 });
+
+function serviceTypeLabel(value) {
+  return value === "wash_iron" ? "Normal Washing & Iron" : "Dry Cleaning";
+}
+
+const MAX_QTY_PER_ITEM = 20;
 
 function renderGrid(products) {
   itemCountPill.textContent = `${products.length} item${products.length === 1 ? "" : "s"}`;
@@ -325,27 +331,25 @@ function renderGrid(products) {
   productGrid.innerHTML = products
     .map((p) => {
       const qty = cart[p.id]?.qty || 0;
-      const outOfStock = Number(p.stock) <= 0;
       const img = p.image_url || FALLBACK_IMAGE;
       return `
         <div class="product-card" data-id="${p.id}">
           <div class="product-media">
             <img src="${img}" alt="${escapeHtml(p.name)}" loading="lazy" />
-            <span class="price-badge">₹${Number(p.price).toFixed(0)} / unit</span>
+            <span class="price-badge">₹${Number(p.price).toFixed(0)} / item</span>
           </div>
           <div class="product-body">
-            ${p.category ? `<p class="product-cat">${escapeHtml(p.category)}</p>` : ""}
+            <p class="product-cat">${escapeHtml(serviceTypeLabel(p.service_type))}</p>
             <h3>${escapeHtml(p.name)}</h3>
-            <p class="product-unit">${outOfStock ? "Out of stock" : `${p.stock} in stock`}</p>
             <div class="qty-slot">
               ${
                 qty > 0
                   ? `<div class="stepper">
                        <button type="button" class="dec-btn">−</button>
                        <span>${qty}</span>
-                       <button type="button" class="inc-btn" ${qty >= p.stock ? "disabled" : ""}>+</button>
+                       <button type="button" class="inc-btn" ${qty >= MAX_QTY_PER_ITEM ? "disabled" : ""}>+</button>
                      </div>`
-                  : `<button type="button" class="add-btn" ${outOfStock ? "disabled" : ""}>${outOfStock ? "Unavailable" : "Add to Cart"}</button>`
+                  : `<button type="button" class="add-btn">Add to Cart</button>`
               }
             </div>
           </div>
@@ -379,7 +383,7 @@ function changeQty(productId, delta) {
 
   const cart = getCart();
   const current = cart[productId]?.qty || 0;
-  const next = Math.max(0, Math.min(product.stock, current + delta));
+  const next = Math.max(0, Math.min(MAX_QTY_PER_ITEM, current + delta));
 
   if (next === 0) {
     delete cart[productId];
@@ -389,8 +393,7 @@ function changeQty(productId, delta) {
       name: product.name,
       price: product.price,
       image_url: product.image_url || FALLBACK_IMAGE,
-      batch_number: product.batch_number || "",
-      expiry_date: product.expiry_date || "",
+      service_type: product.service_type || "",
     };
   }
   setCart(cart);
@@ -401,7 +404,7 @@ function changeQty(productId, delta) {
 function filteredByCurrentSearch() {
   const term = searchInput.value.trim().toLowerCase();
   return allProducts.filter(
-    (p) => (p.name || "").toLowerCase().includes(term) || (p.category || "").toLowerCase().includes(term)
+    (p) => (p.name || "").toLowerCase().includes(term) || serviceTypeLabel(p.service_type).toLowerCase().includes(term)
   );
 }
 
@@ -530,41 +533,6 @@ async function uploadAttachment(file, phone) {
   };
 }
 
-async function deductStock(items) {
-  if (!supabaseClient || !items || items.length === 0) return;
-
-  await Promise.all(
-    items.map(async (item) => {
-      try {
-        // Re-fetch the current stock right before writing, so we deduct from
-        // the latest value rather than whatever was cached on the page.
-        const { data, error: fetchError } = await supabaseClient
-          .from("products")
-          .select("stock")
-          .eq("id", item.productId)
-          .single();
-
-        if (fetchError || !data) {
-          console.error(`Couldn't read stock for product ${item.productId}:`, fetchError?.message);
-          return;
-        }
-
-        const newStock = Math.max(0, Number(data.stock) - Number(item.qty));
-        const { error: updateError } = await supabaseClient
-          .from("products")
-          .update({ stock: newStock })
-          .eq("id", item.productId);
-
-        if (updateError) {
-          console.error(`Couldn't update stock for product ${item.productId}:`, updateError.message);
-        }
-      } catch (err) {
-        console.error(`Stock deduction failed for product ${item.productId}:`, err.message);
-      }
-    })
-  );
-}
-
 function formatFileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -650,8 +618,7 @@ placeOrderBtn.addEventListener("click", async () => {
     name: item.name,
     qty: item.qty,
     price: item.price,
-    batchNumber: item.batch_number || "",
-    expiryDate: item.expiry_date || "",
+    serviceType: item.service_type || "",
   }));
   const total = items.reduce((sum, i) => sum + i.qty * i.price, 0);
 
@@ -696,8 +663,6 @@ placeOrderBtn.addEventListener("click", async () => {
       attachment,
       placedAt: new Date(),
     };
-
-    await deductStock(items);
 
     setCart({});
     renderCartFromStorage();
@@ -750,8 +715,8 @@ function buildWhatsAppBillText(order) {
   if (Array.isArray(order.items) && order.items.length) {
     lines.push("*Items:*");
     order.items.forEach((i) => {
-      const batchBit = i.batchNumber ? ` (Batch ${i.batchNumber}${i.expiryDate ? `, Exp ${formatExpiryShort(i.expiryDate)}` : ""})` : "";
-      lines.push(`• ${i.name} x${i.qty} — ₹${Number(i.qty * i.price).toFixed(2)}${batchBit}`);
+      const serviceBit = i.serviceType ? ` (${i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean"})` : "";
+      lines.push(`• ${i.name} x${i.qty} — ₹${Number(i.qty * i.price).toFixed(2)}${serviceBit}`);
     });
     lines.push("");
   } else if (order.attachment) {
@@ -780,13 +745,6 @@ function shareViaWhatsApp(order) {
   window.open(url, "_blank", "noopener");
 }
 
-function formatExpiryShort(dateStr) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr + "T00:00:00");
-  if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-IN", { month: "2-digit", year: "numeric" });
-}
-
 function buildReceiptHTML(order) {
   const placed = (order.placedAt instanceof Date ? order.placedAt : new Date()).toLocaleString();
   const shortId = order.id.slice(0, 8).toUpperCase();
@@ -795,10 +753,10 @@ function buildReceiptHTML(order) {
   const itemRows = (order.items || []).length
     ? order.items
         .map((i) => {
-          const batchLine = i.batchNumber || i.expiryDate
-            ? `<br/><span style="font-size:11px;color:#555;">${i.batchNumber ? `Batch: ${escapeHtml(i.batchNumber)}` : ""}${i.batchNumber && i.expiryDate ? " · " : ""}${i.expiryDate ? `Exp: ${escapeHtml(formatExpiryShort(i.expiryDate))}` : ""}</span>`
+          const serviceLine = i.serviceType
+            ? `<br/><span style="font-size:11px;color:#555;">${escapeHtml(i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean")}</span>`
             : "";
-          return `<tr><td>${escapeHtml(i.name)}${batchLine}</td><td class="r">${i.qty}</td><td class="r">₹${Number(i.qty * i.price).toFixed(2)}</td></tr>`;
+          return `<tr><td>${escapeHtml(i.name)}${serviceLine}</td><td class="r">${i.qty}</td><td class="r">₹${Number(i.qty * i.price).toFixed(2)}</td></tr>`;
         })
         .join("")
     : `<tr><td colspan="3" style="font-style:italic;">No items listed — see attached file</td></tr>`;
