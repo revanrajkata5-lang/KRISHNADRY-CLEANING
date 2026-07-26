@@ -213,13 +213,6 @@ function renderOrders() {
   });
 }
 
-function formatExpiryShortForBill(dateStr) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr + "T00:00:00");
-  if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-IN", { month: "2-digit", year: "numeric" });
-}
-
 function buildWhatsAppBillText(order) {
   const shortId = order.id.slice(0, 8).toUpperCase();
   const d = order.deliveryDetails || {};
@@ -235,10 +228,8 @@ function buildWhatsAppBillText(order) {
   if (Array.isArray(order.items) && order.items.length) {
     lines.push("*Items:*");
     order.items.forEach((i) => {
-      const batchBit = i.batchNumber
-        ? ` (Batch ${i.batchNumber}${i.expiryDate ? `, Exp ${formatExpiryShortForBill(i.expiryDate)}` : ""})`
-        : "";
-      lines.push(`• ${i.name} x${i.qty} — ₹${Number(i.qty * i.price).toFixed(2)}${batchBit}`);
+      const serviceBit = i.serviceType ? ` (${i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean"})` : "";
+      lines.push(`• ${i.name} x${i.qty} — ₹${Number(i.qty * i.price).toFixed(2)}${serviceBit}`);
     });
     lines.push("");
   } else if (order.attachment) {
@@ -278,10 +269,10 @@ function buildReceiptHTML(order) {
   const itemRows = (order.items || []).length
     ? order.items
         .map((i) => {
-          const batchLine = i.batchNumber || i.expiryDate
-            ? `<br/><span style="font-size:11px;color:#555;">${i.batchNumber ? `Batch: ${escapeHtml(i.batchNumber)}` : ""}${i.batchNumber && i.expiryDate ? " · " : ""}${i.expiryDate ? `Exp: ${escapeHtml(formatExpiryShort(i.expiryDate))}` : ""}</span>`
+          const serviceLine = i.serviceType
+            ? `<br/><span style="font-size:11px;color:#555;">${escapeHtml(i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean")}</span>`
             : "";
-          return `<tr><td>${escapeHtml(i.name)}${batchLine}</td><td class="r">${i.qty}</td><td class="r">₹${Number(i.qty * i.price).toFixed(2)}</td></tr>`;
+          return `<tr><td>${escapeHtml(i.name)}${serviceLine}</td><td class="r">${i.qty}</td><td class="r">₹${Number(i.qty * i.price).toFixed(2)}</td></tr>`;
         })
         .join("")
     : `<tr><td colspan="3" style="font-style:italic;">No items listed — see attached file</td></tr>`;
@@ -377,9 +368,7 @@ function ordersToCSV(orders) {
     const items = Array.isArray(o.items) && o.items.length
       ? o.items
           .map((i) => {
-            const batchBit = i.batchNumber ? ` [Batch ${i.batchNumber}` : "";
-            const expBit = i.expiryDate ? `${i.batchNumber ? ", " : " ["}Exp ${formatExpiryShort(i.expiryDate)}` : "";
-            const suffix = batchBit || expBit ? `${batchBit}${expBit}]` : "";
+            const suffix = i.serviceType ? ` [${i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean"}]` : "";
             return `${i.name} x${i.qty} (₹${Number(i.qty * i.price).toFixed(2)})${suffix}`;
           })
           .join("; ")
@@ -506,14 +495,8 @@ const productFormError = document.getElementById("product-form-error");
 
 const pIdField = document.getElementById("p-id");
 const pName = document.getElementById("p-name");
-const pCategory = document.getElementById("p-category");
+const pServiceType = document.getElementById("p-service-type");
 const pPrice = document.getElementById("p-price");
-const pStock = document.getElementById("p-stock");
-const pBatch = document.getElementById("p-batch");
-const pExpiry = document.getElementById("p-expiry");
-const pBarcode = document.getElementById("p-barcode");
-const pQtyReceived = document.getElementById("p-qty-received");
-const pQtyReceivedApplyBtn = document.getElementById("p-qty-received-apply-btn");
 const pImage = document.getElementById("p-image");
 
 const pImageFile = document.getElementById("p-image-file");
@@ -589,50 +572,33 @@ let allProducts = [];
 
 async function loadProducts() {
   if (!productsTableBody) return;
-  productsTableBody.innerHTML = `<tr><td colspan="7" class="admin-empty">Loading products…</td></tr>`;
+  productsTableBody.innerHTML = `<tr><td colspan="4" class="admin-empty">Loading products…</td></tr>`;
   const { data, error } = await supabaseClient.from("products").select("*").order("name", { ascending: true });
   if (error) {
-    productsTableBody.innerHTML = `<tr><td colspan="7" class="admin-empty">Couldn't load products: ${escapeHtml(error.message)}</td></tr>`;
+    productsTableBody.innerHTML = `<tr><td colspan="4" class="admin-empty">Couldn't load products: ${escapeHtml(error.message)}</td></tr>`;
     return;
   }
   allProducts = data || [];
   renderProducts();
 }
 
-function formatExpiry(dateStr) {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr + "T00:00:00");
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function isExpiredOrSoon(dateStr) {
-  if (!dateStr) return { expired: false, soon: false };
-  const expiry = new Date(dateStr + "T00:00:00");
-  const now = new Date();
-  const sixMonths = new Date();
-  sixMonths.setMonth(sixMonths.getMonth() + 6);
-  return { expired: expiry < now, soon: expiry >= now && expiry <= sixMonths };
+function serviceTypeLabel(value) {
+  return value === "wash_iron" ? "Normal Washing & Iron" : "Dry Cleaning";
 }
 
 function renderProducts() {
   if (!productsTableBody) return;
   if (allProducts.length === 0) {
-    productsTableBody.innerHTML = `<tr><td colspan="7" class="admin-empty">No products yet — add one above.</td></tr>`;
+    productsTableBody.innerHTML = `<tr><td colspan="4" class="admin-empty">No products yet — add one above.</td></tr>`;
     return;
   }
   productsTableBody.innerHTML = allProducts
     .map((p) => {
-      const { expired, soon } = isExpiredOrSoon(p.expiry_date);
-      const expiryColor = expired ? "var(--red, #d32f2f)" : soon ? "var(--yellow, #ff9800)" : "inherit";
       return `
         <tr data-id="${p.id}">
           <td>${escapeHtml(p.name)}</td>
-          <td>${escapeHtml(p.category || "—")}</td>
-          <td>${escapeHtml(p.batch_number || "—")}</td>
-          <td style="color:${expiryColor};font-weight:${expired || soon ? "700" : "400"};">${formatExpiry(p.expiry_date)}${expired ? " ⚠️" : ""}</td>
+          <td>${escapeHtml(serviceTypeLabel(p.service_type))}</td>
           <td>₹${Number(p.price).toFixed(2)}</td>
-          <td>${p.stock}</td>
           <td>
             <button type="button" class="btn btn-ghost edit-product-btn">Edit</button>
             <button type="button" class="btn btn-ghost delete-product-btn">Delete</button>
@@ -648,12 +614,8 @@ function renderProducts() {
       if (!p) return;
       pIdField.value = p.id;
       pName.value = p.name || "";
-      pCategory.value = p.category || "";
+      pServiceType.value = p.service_type || "dry_clean";
       pPrice.value = p.price ?? "";
-      pStock.value = p.stock ?? "";
-      pBatch.value = p.batch_number || "";
-      pExpiry.value = p.expiry_date || "";
-      pBarcode.value = p.barcode || "";
       pImage.value = p.image_url || "";
       productSubmitBtn.textContent = "Save Changes";
       productCancelBtn.hidden = false;
@@ -682,17 +644,13 @@ if (productForm) {
 
     const payload = {
       name: pName.value.trim(),
-      category: pCategory.value.trim(),
+      service_type: pServiceType.value,
       price: Number(pPrice.value),
-      stock: Number(pStock.value),
-      batch_number: pBatch.value.trim(),
-      expiry_date: pExpiry.value || null,
-      barcode: pBarcode.value.trim() || null,
       image_url: pImage.value.trim() || null,
     };
 
-    if (!payload.name || isNaN(payload.price) || isNaN(payload.stock)) {
-      productFormError.textContent = "Please fill in name, price, and stock correctly.";
+    if (!payload.name || isNaN(payload.price)) {
+      productFormError.textContent = "Please fill in dress type and cost correctly.";
       productFormError.hidden = false;
       return;
     }
@@ -744,196 +702,6 @@ function resetProductForm() {
   productCancelBtn.hidden = true;
   productFormError.hidden = true;
   resetProductImageUpload();
-}
-
-if (pQtyReceivedApplyBtn) {
-  pQtyReceivedApplyBtn.addEventListener("click", () => {
-    const received = Number(pQtyReceived.value);
-    if (!received || received <= 0) {
-      alert("Enter a valid quantity received first.");
-      return;
-    }
-    const current = Number(pStock.value) || 0;
-    pStock.value = current + received;
-    pQtyReceived.value = "";
-  });
-}
-
-// ---- Barcode CSV catalog (re-uploaded each session, not stored on the server) ----
-let barcodeCatalog = new Map();
-
-function normalizeBarcode(code) {
-  return String(code || "").trim();
-}
-
-const barcodeCsvInput = document.getElementById("barcode-csv-input");
-const barcodeCsvStatus = document.getElementById("barcode-csv-status");
-
-if (barcodeCsvInput) {
-  barcodeCsvInput.addEventListener("change", () => {
-    const file = barcodeCsvInput.files && barcodeCsvInput.files[0];
-    if (!file) return;
-
-    if (!window.Papa) {
-      barcodeCsvStatus.hidden = false;
-      barcodeCsvStatus.textContent = "CSV parser didn't load — check your internet connection and try again.";
-      return;
-    }
-
-    window.Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        barcodeCatalog = new Map();
-        (results.data || []).forEach((row) => {
-          const normalizedRow = {};
-          Object.keys(row).forEach((key) => {
-            normalizedRow[key.trim().toLowerCase()] = (row[key] ?? "").toString().trim();
-          });
-          const barcode = normalizeBarcode(normalizedRow.barcode);
-          if (!barcode) return;
-          barcodeCatalog.set(barcode, {
-            name: normalizedRow.name || "",
-            category: normalizedRow.category || "",
-            price: normalizedRow.price || "",
-            batch_number: normalizedRow.batch_number || normalizedRow.batch || "",
-            expiry_date: normalizedRow.expiry_date || normalizedRow.expiry || "",
-            image_url: normalizedRow.image_url || normalizedRow.image || "",
-          });
-        });
-        barcodeCsvStatus.hidden = false;
-        barcodeCsvStatus.textContent = `Loaded ${barcodeCatalog.size} barcode(s) from CSV for this session.`;
-      },
-      error: (err) => {
-        barcodeCsvStatus.hidden = false;
-        barcodeCsvStatus.textContent = "Couldn't read CSV: " + err.message;
-      },
-    });
-  });
-}
-
-// ---- Camera barcode scanning ----
-const scanBarcodeBtn = document.getElementById("scan-barcode-btn");
-const barcodeScannerWrap = document.getElementById("barcode-scanner-wrap");
-const barcodeScannerCancelBtn = document.getElementById("barcode-scanner-cancel-btn");
-const barcodeScanStatus = document.getElementById("barcode-scan-status");
-let html5QrScanner = null;
-
-if (scanBarcodeBtn) {
-  scanBarcodeBtn.addEventListener("click", startBarcodeScan);
-}
-if (barcodeScannerCancelBtn) {
-  barcodeScannerCancelBtn.addEventListener("click", stopBarcodeScan);
-}
-
-async function startBarcodeScan() {
-  if (!window.Html5Qrcode) {
-    showBarcodeScanStatus("Barcode scanner library didn't load — check your internet connection and try again.");
-    return;
-  }
-
-  barcodeScanStatus.hidden = true;
-  barcodeScannerWrap.hidden = false;
-
-  html5QrScanner = new Html5Qrcode("barcode-scanner-region", {
-    formatsToSupport: window.Html5QrcodeSupportedFormats
-      ? [
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.CODABAR,
-          Html5QrcodeSupportedFormats.ITF,
-          Html5QrcodeSupportedFormats.DATA_MATRIX,
-        ]
-      : undefined,
-  });
-  try {
-    await html5QrScanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 260, height: 260 } },
-      (decodedText) => handleBarcodeScanned(decodedText),
-      () => {} // ignore per-frame "no code found" noise
-    );
-  } catch (err) {
-    barcodeScannerWrap.hidden = true;
-    showBarcodeScanStatus(
-      "Couldn't access the camera: " + err.message + " — make sure you're on HTTPS and allow camera permission when prompted."
-    );
-  }
-}
-
-async function stopBarcodeScan() {
-  if (html5QrScanner) {
-    try {
-      await html5QrScanner.stop();
-      html5QrScanner.clear();
-    } catch (err) {
-      console.error("Scanner stop failed:", err);
-    }
-    html5QrScanner = null;
-  }
-  barcodeScannerWrap.hidden = true;
-}
-
-function showBarcodeScanStatus(msg) {
-  if (!barcodeScanStatus) return;
-  barcodeScanStatus.hidden = false;
-  barcodeScanStatus.textContent = msg;
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function handleBarcodeScanned(code) {
-  stopBarcodeScan();
-  const barcode = normalizeBarcode(code);
-
-  // 1) Already-saved product with this barcode — treat as a restock.
-  const existing = allProducts.find((p) => p.barcode && normalizeBarcode(p.barcode) === barcode);
-  if (existing) {
-    pIdField.value = existing.id;
-    pName.value = existing.name || "";
-    pCategory.value = existing.category || "";
-    pPrice.value = existing.price ?? "";
-    pStock.value = existing.stock ?? "";
-    pBatch.value = existing.batch_number || "";
-    pExpiry.value = existing.expiry_date || "";
-    pBarcode.value = barcode;
-    pImage.value = existing.image_url || "";
-    productSubmitBtn.textContent = "Save Changes";
-    productCancelBtn.hidden = false;
-    showBarcodeScanStatus(
-      `✅ Matched existing product "${existing.name}" — current stock is ${existing.stock}. Enter "Qty Received" and click "+ Add" to update Stock, then Save.`
-    );
-    if (pQtyReceived) pQtyReceived.focus();
-    return;
-  }
-
-  // 2) Not saved yet — try the uploaded CSV.
-  const csvEntry = barcodeCatalog.get(barcode);
-  resetProductForm();
-
-  if (csvEntry) {
-    pBarcode.value = barcode;
-    pName.value = csvEntry.name || "";
-    pCategory.value = csvEntry.category || "";
-    pPrice.value = csvEntry.price || "";
-    pBatch.value = csvEntry.batch_number || "";
-    pExpiry.value = csvEntry.expiry_date || "";
-    pImage.value = csvEntry.image_url || "";
-    showBarcodeScanStatus(`✅ Found "${csvEntry.name || barcode}" in your CSV — details filled in. Just enter the Stock quantity and Save.`);
-    pStock.focus();
-    return;
-  }
-
-  // 3) Unknown barcode — let them fill in manually; it'll be remembered from now on.
-  pBarcode.value = barcode;
-  showBarcodeScanStatus(
-    `⚠️ Barcode ${barcode} wasn't found in your CSV or saved products. Fill in the details manually — next time you scan it, it'll autofill.`
-  );
-  pName.focus();
 }
 
 const liveToggles = [
@@ -1031,13 +799,6 @@ if (connectPrinterBtn) {
       console.log("Printer pairing cancelled/failed:", err.message);
     }
   });
-}
-
-function formatExpiryShort(dateStr) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr + "T00:00:00");
-  if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-IN", { month: "2-digit", year: "numeric" });
 }
 
 function escapeHtml(str) {
