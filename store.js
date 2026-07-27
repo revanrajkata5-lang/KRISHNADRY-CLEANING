@@ -698,7 +698,6 @@ placeOrderBtn.addEventListener("click", async () => {
     confirmOrderIdEl.textContent = docRef.id.slice(0, 8).toUpperCase();
     renderConfirmAdminContact(area);
     showCartStep("confirmation");
-    notifyAdminViaWhatsApp(lastPlacedOrder);
   } catch (err) {
     deliveryError.textContent = "Couldn't place order: " + err.message;
     deliveryError.hidden = false;
