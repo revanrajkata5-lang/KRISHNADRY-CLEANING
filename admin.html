@@ -41,6 +41,8 @@ body{margin:0;font-family:'Inter',sans-serif;background:#f5f6fa;color:var(--text
 .admin-table th{background:#14315c;color:#fff;padding:15px;text-align:left;}
 .admin-table td{padding:15px;border-bottom:1px solid var(--border);}
 .admin-table tr:hover{background:#f4f6fb;}
+.catalog-section-header{background:#eef1f8 !important;font-weight:700;font-size:14px;color:#14315c;padding:10px 15px !important;border-bottom:1px solid var(--border);}
+.admin-table tr:has(.catalog-section-header):hover{background:#eef1f8;}
 
 .status-pill{padding:6px 14px;border-radius:30px;color:#fff;font-size:13px;font-weight:600;}
 .pending{background:#ff9800;}
@@ -226,6 +228,7 @@ label{display:block;margin-bottom:8px;font-weight:600;}
             <select id="p-service-type" class="text-field" required>
               <option value="dry_clean">Dry Cleaning</option>
               <option value="wash_iron">Normal Washing &amp; Iron</option>
+              <option value="iron_only">Iron Only</option>
             </select>
           </div>
           <div>
