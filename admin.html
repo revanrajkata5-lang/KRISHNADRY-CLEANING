@@ -295,6 +295,16 @@ label{display:block;margin-bottom:8px;font-weight:600;}
     </section>
 
   </div>
+  <p class="admin-section-title">📱 Admin WhatsApp Number</p>
+<p class="settings-note">New orders will automatically open a WhatsApp message to this number so you're notified instantly. Enter it with country code, digits only (e.g. <code>919876543210</code>). Current value: <strong id="admin-whatsapp-current">Not set</strong></p>
+<div style="display:flex;gap:15px;align-items:end;flex-wrap:wrap;">
+  <div style="max-width:320px;flex:1;">
+    <label for="admin-whatsapp-input">WhatsApp Number</label>
+    <input type="text" id="admin-whatsapp-input" class="text-field" placeholder="e.g. 919876543210" />
+  </div>
+  <button type="button" class="btn btn-primary" id="admin-whatsapp-save-btn">💾 Save</button>
+</div>
+<p id="admin-whatsapp-status" class="field-hint" hidden></p>
 
   <button type="button" class="connect-printer-btn" id="connect-printer-btn">
     🖶 Connect Printer
