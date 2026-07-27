@@ -935,16 +935,24 @@ function loadOrders() {
 
   if (ordersUnsubscribe) ordersUnsubscribe();
 
+  // Note: filtering by customerPhone while sorting by createdAt in the same
+  // Firestore query needs a composite index. We sort client-side instead so
+  // this works out of the box without creating one in the Firebase console.
   const ordersQuery = firebaseFns.query(
     firebaseFns.collection(db, "orders"),
-    firebaseFns.where("customerPhone", "==", session.phone),
-    firebaseFns.orderBy("createdAt", "desc")
+    firebaseFns.where("customerPhone", "==", session.phone)
   );
 
   ordersUnsubscribe = firebaseFns.onSnapshot(
     ordersQuery,
     (snapshot) => {
-      const orders = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const orders = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const aTime = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+          const bTime = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+          return bTime - aTime;
+        });
       renderOrders(orders);
     },
     (err) => {
