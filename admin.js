@@ -710,35 +710,18 @@ const liveToggles = [
 ];
 
 let currentDlNumber = "";
-
-async function loadSiteLiveState() {
-  const { data, error } = await supabaseClient
-    .from("store_settings")
-    .select("is_live, dl_number")
-    .eq("id", 1)
-    .single();
-  if (error) {
-    console.error("store_settings load failed:", error.message);
-    showBackendWarning('Site-live toggle needs a "store_settings" table (id, is_live, dl_number) in Supabase — see admin.js for the create-table snippet.');
-    return;
-  }
-  let currentDlNumber = "";
-let currentAdminWhatsApp = "";   // ← added
-
-function applyAdminWhatsApp(value) {
-  const currentEl = document.getElementById("admin-whatsapp-current");
-  const inputEl = document.getElementById("admin-whatsapp-input");
-  if (currentEl) currentEl.textContent = value || "Not set";
-  if (inputEl && document.activeElement !== inputEl) inputEl.value = value || "";
-}
-  applyLiveState(!!data.is_live);
-  currentDlNumber = data.dl_number || "";
-  applyDlNumber(currentDlNumber);
-}
+let currentAdminWhatsApp = "";
 
 function applyDlNumber(value) {
   const currentEl = document.getElementById("dl-number-current");
   const inputEl = document.getElementById("dl-number-input");
+  if (currentEl) currentEl.textContent = value || "Not set";
+  if (inputEl && document.activeElement !== inputEl) inputEl.value = value || "";
+}
+
+function applyAdminWhatsApp(value) {
+  const currentEl = document.getElementById("admin-whatsapp-current");
+  const inputEl = document.getElementById("admin-whatsapp-input");
   if (currentEl) currentEl.textContent = value || "Not set";
   if (inputEl && document.activeElement !== inputEl) inputEl.value = value || "";
 }
@@ -750,22 +733,23 @@ function applyLiveState(isLive) {
     if (text) text.textContent = isLive ? "Site LIVE" : "Site OFFLINE";
   });
 }
+
 async function loadSiteLiveState() {
   const { data, error } = await supabaseClient
     .from("store_settings")
-    .select("is_live, dl_number, admin_whatsapp")   // ← added admin_whatsapp
+    .select("is_live, dl_number, admin_whatsapp")
     .eq("id", 1)
     .single();
   if (error) {
     console.error("store_settings load failed:", error.message);
-    showBackendWarning('Site-live toggle needs a "store_settings" table (id, is_live, dl_number) in Supabase — see admin.js for the create-table snippet.');
+    showBackendWarning('Site-live toggle needs a "store_settings" table (id, is_live, dl_number, admin_whatsapp) in Supabase — see admin.js for the create-table snippet.');
     return;
   }
   applyLiveState(!!data.is_live);
   currentDlNumber = data.dl_number || "";
   applyDlNumber(currentDlNumber);
-  currentAdminWhatsApp = data.admin_whatsapp || "";   // ← added
-  applyAdminWhatsApp(currentAdminWhatsApp);           // ← added
+  currentAdminWhatsApp = data.admin_whatsapp || "";
+  applyAdminWhatsApp(currentAdminWhatsApp);
 }
 
 liveToggles.forEach(({ checkbox }) => {
@@ -785,7 +769,29 @@ const dlNumberSaveBtn = document.getElementById("dl-number-save-btn");
 const dlNumberInput = document.getElementById("dl-number-input");
 const dlNumberStatus = document.getElementById("dl-number-status");
 
-if (dlNumberSaveBtn)
+if (dlNumberSaveBtn) {
+  dlNumberSaveBtn.addEventListener("click", async () => {
+    const value = dlNumberInput.value.trim();
+    dlNumberSaveBtn.disabled = true;
+    const { error } = await supabaseClient.from("store_settings").upsert({ id: 1, dl_number: value });
+    dlNumberSaveBtn.disabled = false;
+
+    if (dlNumberStatus) {
+      dlNumberStatus.hidden = false;
+      if (error) {
+        dlNumberStatus.textContent = "Couldn't save DL number: " + error.message;
+      } else {
+        currentDlNumber = value;
+        applyDlNumber(value);
+        dlNumberStatus.textContent = "Saved.";
+        setTimeout(() => {
+          dlNumberStatus.hidden = true;
+        }, 2500);
+      }
+    }
+  });
+}
+
 const adminWhatsAppSaveBtn = document.getElementById("admin-whatsapp-save-btn");
 const adminWhatsAppInput = document.getElementById("admin-whatsapp-input");
 const adminWhatsAppStatus = document.getElementById("admin-whatsapp-status");
@@ -805,27 +811,8 @@ if (adminWhatsAppSaveBtn) {
         currentAdminWhatsApp = value;
         applyAdminWhatsApp(value);
         adminWhatsAppStatus.textContent = "Saved.";
-        setTimeout(() => { adminWhatsAppStatus.hidden = true; }, 2500);
-      }
-    }
-  });
-}{
-  dlNumberSaveBtn.addEventListener("click", async () => {
-    const value = dlNumberInput.value.trim();
-    dlNumberSaveBtn.disabled = true;
-    const { error } = await supabaseClient.from("store_settings").upsert({ id: 1, dl_number: value });
-    dlNumberSaveBtn.disabled = false;
-
-    if (dlNumberStatus) {
-      dlNumberStatus.hidden = false;
-      if (error) {
-        dlNumberStatus.textContent = "Couldn't save DL number: " + error.message;
-      } else {
-        currentDlNumber = value;
-        applyDlNumber(value);
-        dlNumberStatus.textContent = "Saved.";
         setTimeout(() => {
-          dlNumberStatus.hidden = true;
+          adminWhatsAppStatus.hidden = true;
         }, 2500);
       }
     }
