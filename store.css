@@ -589,6 +589,9 @@ form label {
 .confirmation-order-id { font-size: 15px; margin: 6px 0; }
 .confirmation-order-id strong { color: var(--green-700); }
 .confirmation-sub { color: var(--ink-soft); font-size: 13.5px; }
+.confirmation-contact { font-size: 14px; margin: 4px 0 10px; }
+.confirmation-contact a.confirmation-contact-link { color: var(--green-700); font-weight: 600; text-decoration: none; }
+.confirmation-contact a.confirmation-contact-link:hover { text-decoration: underline; }
 
 :focus-visible { outline: 2px solid var(--green-500); outline-offset: 2px; }
 
