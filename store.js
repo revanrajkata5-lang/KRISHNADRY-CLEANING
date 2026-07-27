@@ -684,8 +684,7 @@ placeOrderBtn.addEventListener("click", async () => {
     confirmOrderIdEl.textContent = docRef.id.slice(0, 8).toUpperCase();
     renderConfirmAdminContact(area);
     showCartStep("confirmation");
-    shareViaWhatsApp(lastPlacedOrder);
-    notifyAdminViaWhatsApp(lastPlacedOrder);   // ← added
+    notifyAdminViaWhatsApp(lastPlacedOrder);
   } catch (err) {
     deliveryError.textContent = "Couldn't place order: " + err.message;
     deliveryError.hidden = false;
@@ -801,14 +800,15 @@ function renderConfirmAdminContact(area) {
   }
 
   const isDirectChatArea = WHATSAPP_DIRECT_CHAT_AREAS.includes(area);
+  const noteLine = '<br><span class="confirmation-contact-note">Call for item pickup or any doubts</span>';
 
   if (isDirectChatArea) {
     // Plain click-to-chat link — no auto-sent message, just opens the chat.
     confirmAdminContactEl.innerHTML =
-      `Call/Chat: <a href="https://wa.me/${adminWhatsAppNumber}" target="_blank" rel="noopener" class="confirmation-contact-link">📱 ${adminWhatsAppNumber}</a>`;
+      `Call/Chat: <a href="https://wa.me/${adminWhatsAppNumber}" target="_blank" rel="noopener" class="confirmation-contact-link">📱 ${adminWhatsAppNumber}</a>${noteLine}`;
   } else {
     // Plain number, no WhatsApp automation for other areas.
-    confirmAdminContactEl.textContent = `Call: ${adminWhatsAppNumber}`;
+    confirmAdminContactEl.innerHTML = `Call: ${adminWhatsAppNumber}${noteLine}`;
   }
 
   confirmAdminContactEl.hidden = false;
