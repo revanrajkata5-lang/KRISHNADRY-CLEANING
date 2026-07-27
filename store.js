@@ -91,6 +91,7 @@ const dLandmark = document.getElementById("d-landmark");
 const dMandal = document.getElementById("d-mandal");
 const dDistrict = document.getElementById("d-district");
 const dFlat = document.getElementById("d-flat");
+const dArea = document.getElementById("d-area");
 const dAltPhone = document.getElementById("d-alt-phone");
 const dNote = document.getElementById("d-note");
 const deliveryError = document.getElementById("delivery-error");
@@ -108,6 +109,12 @@ const backToCartBtn = document.getElementById("back-to-cart-btn");
 const placeOrderBtn = document.getElementById("place-order-btn");
 
 const confirmOrderIdEl = document.getElementById("confirm-order-id");
+const confirmAdminContactEl = document.getElementById("confirm-admin-contact");
+
+// Areas where the customer can chat directly with the admin's WhatsApp number
+// on the confirmation screen (plain click-to-chat link, no auto-sent message).
+// All other areas just show the number as plain text.
+const WHATSAPP_DIRECT_CHAT_AREAS = ["MANGALPALLI X ROAD", "BONGLOOR X ROAD", "MANAGUDA X ROAD", "YAMJAL"];
 const printReceiptBtn = document.getElementById("print-receipt-btn");
 const whatsappShareBtn = document.getElementById("whatsapp-share-btn");
 const confirmContinueBtn = document.getElementById("confirm-continue-btn");
@@ -587,11 +594,12 @@ placeOrderBtn.addEventListener("click", async () => {
   const mandal = dMandal.value.trim();
   const district = dDistrict.value.trim();
   const flat = dFlat.value.trim();
+  const area = dArea.value.trim();
   const altPhoneDigits = dAltPhone.value.trim();
   const note = dNote.value.trim();
 
-  if (!street || !landmark || !mandal || !district || !flat) {
-    deliveryError.textContent = "Please fill in your street, landmark, mandal, district, and flat/house number.";
+  if (!street || !landmark || !mandal || !district || !flat || !area) {
+    deliveryError.textContent = "Please fill in your street, landmark, mandal, district, flat/house number, and area.";
     deliveryError.hidden = false;
     return;
   }
@@ -630,6 +638,7 @@ placeOrderBtn.addEventListener("click", async () => {
     mandal,
     district,
     flat,
+    area,
     altPhone: altPhoneDigits ? `+91${altPhoneDigits}` : "",
     note,
   };
@@ -673,6 +682,7 @@ placeOrderBtn.addEventListener("click", async () => {
     resetFileUpload();
 
     confirmOrderIdEl.textContent = docRef.id.slice(0, 8).toUpperCase();
+    renderConfirmAdminContact(area);
     showCartStep("confirmation");
     shareViaWhatsApp(lastPlacedOrder);
     notifyAdminViaWhatsApp(lastPlacedOrder);   // ← added
@@ -780,6 +790,28 @@ function buildAdminWhatsAppText(order) {
   if (d.note) lines.push(`Note: ${d.note}`);
 
   return lines.join("\n");
+}
+
+function renderConfirmAdminContact(area) {
+  if (!confirmAdminContactEl) return;
+
+  if (!adminWhatsAppNumber) {
+    confirmAdminContactEl.hidden = true;
+    return;
+  }
+
+  const isDirectChatArea = WHATSAPP_DIRECT_CHAT_AREAS.includes(area);
+
+  if (isDirectChatArea) {
+    // Plain click-to-chat link — no auto-sent message, just opens the chat.
+    confirmAdminContactEl.innerHTML =
+      `Call/Chat: <a href="https://wa.me/${adminWhatsAppNumber}" target="_blank" rel="noopener" class="confirmation-contact-link">📱 ${adminWhatsAppNumber}</a>`;
+  } else {
+    // Plain number, no WhatsApp automation for other areas.
+    confirmAdminContactEl.textContent = `Call: ${adminWhatsAppNumber}`;
+  }
+
+  confirmAdminContactEl.hidden = false;
 }
 
 function notifyAdminViaWhatsApp(order) {
