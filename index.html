@@ -148,6 +148,15 @@
           <label for="d-flat">Flat / House Number</label>
           <input type="text" id="d-flat" class="text-field" required placeholder="e.g. 101, A-12" />
 
+          <label for="d-area">Area</label>
+          <select id="d-area" class="text-field" required>
+            <option value="" disabled selected>Select your area</option>
+            <option value="MANGALPALLI X ROAD">MANGALPALLI X ROAD</option>
+            <option value="BONGLOOR X ROAD">BONGLOOR X ROAD</option>
+            <option value="MANAGUDA X ROAD">MANAGUDA X ROAD</option>
+            <option value="YAMJAL">YAMJAL</option>
+          </select>
+
           <label for="d-alt-phone">Alt Mobile (optional)</label>
           <div class="phone-field">
             <span class="phone-code">+91</span>
@@ -187,6 +196,7 @@
       <div class="drawer-body confirmation-body">
         <p class="confirmation-check">✅</p>
         <p class="confirmation-order-id">Order ID: <strong id="confirm-order-id">—</strong></p>
+        <p id="confirm-admin-contact" class="confirmation-contact" hidden></p>
         <p class="confirmation-sub">We'll deliver to your address soon.</p>
       </div>
       <div class="drawer-foot">
