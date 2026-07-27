@@ -230,7 +230,7 @@ function buildWhatsAppBillText(order) {
   if (Array.isArray(order.items) && order.items.length) {
     lines.push("*Items:*");
     order.items.forEach((i) => {
-      const serviceBit = i.serviceType ? ` (${i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean"})` : "";
+      const serviceBit = i.serviceType ? ` (${serviceTypeShortLabel(i.serviceType)})` : "";
       lines.push(`• ${i.name} x${i.qty} — ₹${Number(i.qty * i.price).toFixed(2)}${serviceBit}`);
     });
     lines.push("");
@@ -273,7 +273,7 @@ function buildReceiptHTML(order) {
     ? order.items
         .map((i) => {
           const serviceLine = i.serviceType
-            ? `<br/><span style="font-size:11px;color:#555;">${escapeHtml(i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean")}</span>`
+            ? `<br/><span style="font-size:11px;color:#555;">${escapeHtml(serviceTypeShortLabel(i.serviceType))}</span>`
             : "";
           return `<tr><td>${escapeHtml(i.name)}${serviceLine}</td><td class="r">${i.qty}</td><td class="r">₹${Number(i.qty * i.price).toFixed(2)}</td></tr>`;
         })
@@ -373,7 +373,7 @@ function ordersToCSV(orders) {
     const items = Array.isArray(o.items) && o.items.length
       ? o.items
           .map((i) => {
-            const suffix = i.serviceType ? ` [${i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean"}]` : "";
+            const suffix = i.serviceType ? ` [${serviceTypeShortLabel(i.serviceType)}]` : "";
             return `${i.name} x${i.qty} (₹${Number(i.qty * i.price).toFixed(2)})${suffix}`;
           })
           .join("; ")
@@ -589,8 +589,22 @@ async function loadProducts() {
 }
 
 function serviceTypeLabel(value) {
-  return value === "wash_iron" ? "Normal Washing & Iron" : "Dry Cleaning";
+  if (value === "wash_iron") return "Normal Washing & Iron";
+  if (value === "iron_only") return "Iron Only";
+  return "Dry Cleaning";
 }
+
+function serviceTypeShortLabel(value) {
+  if (value === "wash_iron") return "Wash & Iron";
+  if (value === "iron_only") return "Iron Only";
+  return "Dry Clean";
+}
+
+const CATALOG_SECTIONS = [
+  { key: "dry_clean", title: "🧥 Dry Cleaning" },
+  { key: "wash_iron", title: "🫧 Wash & Iron" },
+  { key: "iron_only", title: "👔 Iron Only" },
+];
 
 function renderProducts() {
   if (!productsTableBody) return;
@@ -598,9 +612,8 @@ function renderProducts() {
     productsTableBody.innerHTML = `<tr><td colspan="4" class="admin-empty">No products yet — add one above.</td></tr>`;
     return;
   }
-  productsTableBody.innerHTML = allProducts
-    .map((p) => {
-      return `
+
+  const rowHtml = (p) => `
         <tr data-id="${p.id}">
           <td>${escapeHtml(p.name)}</td>
           <td>${escapeHtml(serviceTypeLabel(p.service_type))}</td>
@@ -610,8 +623,13 @@ function renderProducts() {
             <button type="button" class="btn btn-ghost delete-product-btn">Delete</button>
           </td>
         </tr>`;
-    })
-    .join("");
+
+  productsTableBody.innerHTML = CATALOG_SECTIONS.map(({ key, title }) => {
+    const items = allProducts.filter((p) => (p.service_type || "dry_clean") === key);
+    if (items.length === 0) return "";
+    const header = `<tr><td colspan="4" class="catalog-section-header">${escapeHtml(title)}</td></tr>`;
+    return header + items.map(rowHtml).join("");
+  }).join("");
 
   productsTableBody.querySelectorAll(".edit-product-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
