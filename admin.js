@@ -125,7 +125,7 @@ function subscribeOrders() {
     },
     (err) => {
       if (ordersTableBody) {
-        ordersTableBody.innerHTML = `<tr><td colspan="8" class="admin-empty">Couldn't load orders: ${escapeHtml(err.message)}</td></tr>`;
+        ordersTableBody.innerHTML = `<tr><td colspan="9" class="admin-empty">Couldn't load orders: ${escapeHtml(err.message)}</td></tr>`;
       }
     }
   );
@@ -141,7 +141,7 @@ function renderOrders() {
   }
 
   if (allOrders.length === 0) {
-    ordersTableBody.innerHTML = `<tr><td colspan="8" class="admin-empty">No orders yet.</td></tr>`;
+    ordersTableBody.innerHTML = `<tr><td colspan="9" class="admin-empty">No orders yet.</td></tr>`;
     return;
   }
 
@@ -164,12 +164,14 @@ function renderOrders() {
       const options = STATUS_OPTIONS.map(
         (s) => `<option value="${s}" ${s === status ? "selected" : ""}>${s}</option>`
       ).join("");
+      const area = (o.deliveryDetails || {}).area || "—";
       return `
         <tr data-id="${o.id}">
           <td>${o.id.slice(0, 8)}</td>
           <td>${when}</td>
           <td>${escapeHtml(o.customerName || "—")}</td>
           <td>${escapeHtml(o.customerPhone || "—")}</td>
+          <td>${escapeHtml(area)}</td>
           <td>${escapeHtml(itemsSummary)}${attachmentTag}</td>
           <td>₹${Number(o.total || 0).toFixed(2)}</td>
           <td><span class="status-pill ${status}">${status}</span></td>
@@ -242,6 +244,7 @@ function buildWhatsAppBillText(order) {
   lines.push("*Delivery to:*");
   lines.push(`${d.flat || "-"}, ${d.street || "-"}`);
   lines.push(`${d.landmark || "-"}, ${d.mandal || "-"}, ${d.district || "-"}`);
+  if (d.area) lines.push(`Area: ${d.area}`);
   if (d.note) lines.push(`Note: ${d.note}`);
   lines.push("");
   lines.push("Thank you for shopping with us! 🙏");
@@ -316,6 +319,7 @@ function buildReceiptHTML(order) {
   ${d.altPhone ? `<p class="meta">Alt: ${escapeHtml(d.altPhone)}</p>` : ""}
   <p class="meta">${escapeHtml(d.street || "-")}, ${escapeHtml(d.landmark || "-")}</p>
   <p class="meta">${escapeHtml(d.mandal || "-")} / ${escapeHtml(d.district || "-")}</p>
+  ${d.area ? `<p class="meta">Area: ${escapeHtml(d.area)}</p>` : ""}
   ${d.note ? `<p class="meta">Note: ${escapeHtml(d.note)}</p>` : ""}
   ${attachmentLine}
   <hr/>
@@ -358,6 +362,7 @@ function ordersToCSV(orders) {
     "Mandal",
     "District",
     "Flat/House No.",
+    "Area",
     "Alt Phone",
     "Packing Note",
     "Attachment",
@@ -389,6 +394,7 @@ function ordersToCSV(orders) {
       d.mandal || "",
       d.district || "",
       d.flat || "",
+      d.area || "",
       d.altPhone || "",
       d.note || "",
       o.attachment ? o.attachment.url : "",
