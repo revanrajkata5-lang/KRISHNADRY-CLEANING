@@ -1,16 +1,16 @@
 // TODO: Replace with YOUR Firebase project's config (Firebase Console → Project settings → Your apps).
 const firebaseConfig = {
-  apiKey: "YOUR_FIREBASE_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.firebasestorage.app",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyDxcm9BaoIuVykf4XXr-Ho_dAVyVMRVc4M",
+  authDomain: "dryclean-68e2e.firebaseapp.com",
+  projectId: "dryclean-68e2e",
+  storageBucket: "dryclean-68e2e.firebasestorage.app",
+  messagingSenderId: "293560988923",
+  appId: "1:293560988923:web:dbf3bf7e62a8b42a0fac5e",
 };
 
 // TODO: Replace with YOUR Supabase project's URL and anon key (Supabase Dashboard → Project Settings → API).
-const SUPABASE_URL = "https://YOUR_SUPABASE_PROJECT_REF.supabase.co";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://vbadagpbaizranykjnbq.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_OPIrAIpgc83VBMqSHE51SA_Hxu6kyQg";
 
 const ADMIN_CONSOLE_URL = "admin.html";
 
