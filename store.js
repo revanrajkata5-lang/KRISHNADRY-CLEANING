@@ -322,8 +322,22 @@ searchInput.addEventListener("input", () => {
 });
 
 function serviceTypeLabel(value) {
-  return value === "wash_iron" ? "Normal Washing & Iron" : "Dry Cleaning";
+  if (value === "wash_iron") return "Normal Washing & Iron";
+  if (value === "iron_only") return "Iron Only";
+  return "Dry Cleaning";
 }
+
+function serviceTypeShortLabel(value) {
+  if (value === "wash_iron") return "Wash & Iron";
+  if (value === "iron_only") return "Iron Only";
+  return "Dry Clean";
+}
+
+const PRODUCT_SECTIONS = [
+  { key: "dry_clean", title: "🧥 Dry Cleaning" },
+  { key: "wash_iron", title: "🫧 Wash & Iron" },
+  { key: "iron_only", title: "👔 Iron Only" },
+];
 
 const MAX_QTY_PER_ITEM = 20;
 
@@ -727,7 +741,7 @@ function buildWhatsAppBillText(order) {
   if (Array.isArray(order.items) && order.items.length) {
     lines.push("*Items:*");
     order.items.forEach((i) => {
-      const serviceBit = i.serviceType ? ` (${i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean"})` : "";
+      const serviceBit = i.serviceType ? ` (${serviceTypeShortLabel(i.serviceType)})` : "";
       lines.push(`• ${i.name} x${i.qty} — ₹${Number(i.qty * i.price).toFixed(2)}${serviceBit}`);
     });
     lines.push("");
@@ -771,7 +785,7 @@ function buildAdminWhatsAppText(order) {
   if (Array.isArray(order.items) && order.items.length) {
     lines.push("*Items:*");
     order.items.forEach((i) => {
-      const serviceBit = i.serviceType ? ` (${i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean"})` : "";
+      const serviceBit = i.serviceType ? ` (${serviceTypeShortLabel(i.serviceType)})` : "";
       lines.push(`• ${i.name} x${i.qty} — ₹${Number(i.qty * i.price).toFixed(2)}${serviceBit}`);
     });
     lines.push("");
@@ -830,7 +844,7 @@ function buildReceiptHTML(order) {
     ? order.items
         .map((i) => {
           const serviceLine = i.serviceType
-            ? `<br/><span style="font-size:11px;color:#555;">${escapeHtml(i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean")}</span>`
+            ? `<br/><span style="font-size:11px;color:#555;">${escapeHtml(serviceTypeShortLabel(i.serviceType))}</span>`
             : "";
           return `<tr><td>${escapeHtml(i.name)}${serviceLine}</td><td class="r">${i.qty}</td><td class="r">₹${Number(i.qty * i.price).toFixed(2)}</td></tr>`;
         })
