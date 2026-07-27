@@ -122,16 +122,18 @@ const ordersBody = document.getElementById("orders-body");
 
 let allProducts = [];
 let currentDlNumber = "";
+let adminWhatsAppNumber = "";   // ← added
 
 async function loadDlNumber() {
   if (!supabaseClient) return;
   const { data, error } = await supabaseClient
     .from("store_settings")
-    .select("dl_number")
+    .select("dl_number, admin_whatsapp")   // ← added admin_whatsapp
     .eq("id", 1)
     .single();
   if (!error && data) {
     currentDlNumber = data.dl_number || "";
+    adminWhatsAppNumber = data.admin_whatsapp || "";   // ← added
   }
 }
 
@@ -673,6 +675,7 @@ placeOrderBtn.addEventListener("click", async () => {
     confirmOrderIdEl.textContent = docRef.id.slice(0, 8).toUpperCase();
     showCartStep("confirmation");
     shareViaWhatsApp(lastPlacedOrder);
+    notifyAdminViaWhatsApp(lastPlacedOrder);   // ← added
   } catch (err) {
     deliveryError.textContent = "Couldn't place order: " + err.message;
     deliveryError.hidden = false;
@@ -742,6 +745,47 @@ function shareViaWhatsApp(order) {
   const fullNumber = phoneDigits.length === 10 ? `91${phoneDigits}` : phoneDigits;
   const text = encodeURIComponent(buildWhatsAppBillText(order));
   const url = `https://wa.me/${fullNumber}?text=${text}`;
+  window.open(url, "_blank", "noopener");
+}
+
+function buildAdminWhatsAppText(order) {
+  const shortId = order.id.slice(0, 8).toUpperCase();
+  const d = order.deliveryDetails || {};
+
+  const lines = [];
+  lines.push("🔔 *New Order Received!*");
+  lines.push("");
+  lines.push(`Order ID: *${shortId}*`);
+  lines.push(`Customer: ${order.customerName || "-"} (${order.customerPhone || "-"})`);
+  lines.push("");
+
+  if (Array.isArray(order.items) && order.items.length) {
+    lines.push("*Items:*");
+    order.items.forEach((i) => {
+      const serviceBit = i.serviceType ? ` (${i.serviceType === "wash_iron" ? "Wash & Iron" : "Dry Clean"})` : "";
+      lines.push(`• ${i.name} x${i.qty} — ₹${Number(i.qty * i.price).toFixed(2)}${serviceBit}`);
+    });
+    lines.push("");
+  } else if (order.attachment) {
+    lines.push("Order placed via attached file (no listed items).");
+    lines.push("");
+  }
+
+  lines.push(`*Total: ₹${Number(order.total || 0).toFixed(2)}*`);
+  lines.push("");
+  lines.push("*Deliver to:*");
+  lines.push(`${d.flat || "-"}, ${d.street || "-"}`);
+  lines.push(`${d.landmark || "-"}, ${d.mandal || "-"}, ${d.district || "-"}`);
+  if (d.altPhone) lines.push(`Alt phone: ${d.altPhone}`);
+  if (d.note) lines.push(`Note: ${d.note}`);
+
+  return lines.join("\n");
+}
+
+function notifyAdminViaWhatsApp(order) {
+  if (!adminWhatsAppNumber) return; // admin hasn't saved a number yet
+  const text = encodeURIComponent(buildAdminWhatsAppText(order));
+  const url = `https://wa.me/${adminWhatsAppNumber}?text=${text}`;
   window.open(url, "_blank", "noopener");
 }
 
